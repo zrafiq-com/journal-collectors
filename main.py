@@ -1,4 +1,4 @@
-from general.scraper_main import *
+from journal_collectors.scraper_main import *
 import pandas as pd
 df = pd.read_csv("./general/query_data.csv", skiprows=1)
 
