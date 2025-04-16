@@ -7,7 +7,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support import expected_conditions as EC
+import logging
 
+
+
+logging.basicConfig(
+    filename='debug.log',  # or use 'logs/ieee_scraper.log' in a logs folder
+    filemode='a',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 class IEEEScraper:
     stop_scraping = False
@@ -107,11 +117,11 @@ class IEEEScraper:
                     data = self.extract_item_data(item)
                     self.save_data_to_csv(data)
                     scraped_count += 1
-                    print(f"✅ Scraped item {scraped_count}")
+                    logger.info(f"✅ Scraped item {scraped_count}")
                 except Exception as e:
-                    print(f"❌ Failed on item {scraped_count + 1}: {e}")
+                    logger.warning(f"❌ Failed on item {scraped_count + 1}: {e}")
         except:
-            print("⚠️ No results found on this page.")
+            logger.warning("⚠️ No results found on this page.")
             return None
         return scraped_count
 
@@ -121,17 +131,17 @@ class IEEEScraper:
     def scrape(self):
         for query in self.queries:
             if IEEEScraper.stop_scraping:
-                print("🛑 Scraping manually stopped by user.")
+                logger.info("🛑 Scraping manually stopped by user.")
                 break
 
             encoded_query = self.encode_spaces(query)
-            print(f"\n🔍 Query: {query}")
+            logger.info(f"\n🔍 Query: {query}")
             current_page = 1
             scraped_count = 0
 
             while scraped_count < self.total_items_to_scrape:
                 if IEEEScraper.stop_scraping:
-                    print("🛑 Scraping manually stopped by user.")
+                    logger.info("🛑 Scraping manually stopped by user.")
                     break
 
                 url = f"https://ieeexplore.ieee.org/search/searchresult.jsp?contentType=periodicals&queryText={encoded_query}&highlight=true&returnType=SEARCH&matchPubs=true&rowsPerPage={self.items_per_page}&returnFacets=ALL&ranges=2001_2020_Year&refinements=ContentType:Journals&pageNumber={current_page}"
@@ -141,14 +151,14 @@ class IEEEScraper:
                 scraped_now = self.extract_results(self.items_per_page)
 
                 if scraped_now is None:
-                    print("⚠️ No results found, moving to next query.")
+                    logger.warning("⚠️ No results found, moving to next query.")
                     break
 
                 scraped_count += scraped_now
                 current_page += 1
                 time.sleep(5)
         self.close()
-        print("✅ Done scraping all queries.")
+        logger.info("✅ Done scraping all queries.")
 
     def close(self):
         self.driver.quit()

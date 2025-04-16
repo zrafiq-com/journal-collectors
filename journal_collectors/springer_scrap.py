@@ -1,4 +1,3 @@
-
 import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -7,6 +6,19 @@ from bs4 import BeautifulSoup
 import os
 import csv
 from webdriver_manager.chrome import ChromeDriverManager
+import sys
+import signal
+import logging
+
+
+logging.basicConfig(
+    filename='debug.log',  # or use 'logs/ieee_scraper.log' in a logs folder
+    filemode='a',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 
 class SpringerScraper:
@@ -72,35 +84,57 @@ class SpringerScraper:
         output_file = "./output/scraped_data.csv"
         file_exists = os.path.isfile(output_file)
 
-        with open(output_file, mode='a', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        try:
+            with open(output_file, mode='a', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-            if not file_exists:
-                writer.writeheader()
+                if not file_exists:
+                    writer.writeheader()
 
-            for search_query in self.queries:
-                print(f"\n🔍 Searching for: {search_query}")
-                results = self._get_search_results(search_query)
+                for search_query in self.queries:
+                    logger.info(f"\n🔍 Searching for: {search_query}")
+                    results = self._get_search_results(search_query)
 
-                for item in results:
-                    title, detail_link, content_type, published = self._extract_details_from_item(item)
-                    overview_text, editor_name, metrics = self._get_detail_page_info(detail_link)
+                    for item in results:
+                        title, detail_link, content_type, published = self._extract_details_from_item(item)
+                        overview_text, editor_name, metrics = self._get_detail_page_info(detail_link)
 
-                    writer.writerow({
-                    "Title": title,
-                    "Authors": editor_name,  # You can parse actual authors if needed
-                    "Publisher": 'SPRINGER',  # Assuming editor is considered publisher
-                    "Year": published,
-                    "Abstract": overview_text,
-                    "Journal": content_type,
-                    "Volume/Issue": "N/A",  # Placeholder, you can extract if available
-                    "Cited By": "N/A"  # Placeholder, you can extract if available
-                    
-                     })
+                        writer.writerow({
+                            "Title": title,
+                            "Authors": editor_name,  # You can parse actual authors if needed
+                            "Publisher": 'SPRINGER',  # Assuming editor is considered publisher
+                            "Year": published,
+                            "Abstract": overview_text,
+                            "Journal": content_type,
+                            "Volume/Issue": "N/A",  # Placeholder, you can extract if available
+                            "Cited By": "N/A"  # Placeholder, you can extract if available
+                        })
 
-                    self.driver.close()
-                    self.driver.switch_to.window(self.driver.window_handles[0])
+                        self.driver.close()
+                        self.driver.switch_to.window(self.driver.window_handles[0])
+
+        except PermissionError as e:
+            logger.error(f"PermissionError: {e}. Please close the file if it's open in another program.")
+        except ConnectionResetError as e:
+            logger.error(f"ConnectionResetError: {e}. The connection was forcibly closed by the remote host.")
+        except KeyboardInterrupt:
+            logger.info("\nProcess interrupted by the user. Exiting gracefully...")
+            self.cleanup()
+            sys.exit(0)
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}")
 
     def cleanup(self):
-        self.driver.quit()
+        try:
+            self.driver.quit()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+            raise
+
+# Setup for graceful termination on program exit
+def signal_handler(sig, frame):
+    logger.info("Process interrupted, cleaning up...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)

@@ -31,6 +31,7 @@ def main():
     df = load_queries(QUERY_FILE)
     for _, row in df.head(20).iterrows():
         process_query(row)
+        
 
 if __name__ == "__main__":
     main()
