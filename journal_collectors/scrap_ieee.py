@@ -117,7 +117,7 @@ class IEEEScraper:
                     data = self.extract_item_data(item)
                     self.save_data_to_csv(data)
                     scraped_count += 1
-                    logger.info(f"✅ Scraped item {scraped_count}")
+                    print(f"✅ Scraped item {scraped_count}")
                 except Exception as e:
                     logger.warning(f"❌ Failed on item {scraped_count + 1}: {e}")
         except:

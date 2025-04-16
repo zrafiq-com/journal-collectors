@@ -104,7 +104,7 @@ class SpringerScraper:
                             "Title": title,
                             "Authors": editor_name,  # You can parse actual authors if needed
                             "Publisher": 'SPRINGER',  # Assuming editor is considered publisher
-                            "Year": published,
+                            "Year": f"Year:{published}",
                             "Abstract": overview_text,
                             "Journal": content_type,
                             "Volume/Issue": "N/A",  # Placeholder, you can extract if available
