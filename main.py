@@ -4,7 +4,7 @@ from journal_collectors.springer_scrap import SpringerScraper
 from journal_collectors.acm_scrap import AcmScraper
 
 
-QUERY_FILE = "./journal_collectors/query_data.csv"
+QUERY_FILE = "input.csv"
 SUPPORTED_PUBLISHERS = ["SPRINGER", "IEEE","ASSOC"]
 
 def load_queries(file_path: str) -> pd.DataFrame:
