@@ -1,7 +1,10 @@
 import csv
 import os
 import time
-
+import pandas as pd 
+        
+        
+        
 from bs4 import BeautifulSoup
 import undetected_chromedriver as uc
 # Ensure dependencies
@@ -267,10 +270,6 @@ class ScienceDirectScraper:
         print(f"✅ Total articles scraped: {total_scraped}")
 
 
-import pandas as pd 
-        
-        
-        
         
 QUERY_FILE = "../input.csv"
 
