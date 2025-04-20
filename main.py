@@ -3,12 +3,13 @@ from journal_collectors.scrap_ieee import IEEEScraper
 from journal_collectors.springer_scrap import SpringerScraper
 from journal_collectors.acm_scrap import AcmScraper
 
+QUERY_FILE = "/home/darkside/PycharmProjects/journal-collectors/input.csv"
+SUPPORTED_PUBLISHERS = ["SPRINGER", "IEEE", "ASSOC"]
 
-QUERY_FILE = "input.csv"
-SUPPORTED_PUBLISHERS = ["SPRINGER", "IEEE","ASSOC"]
 
 def load_queries(file_path: str) -> pd.DataFrame:
     return pd.read_csv(file_path, skiprows=1)
+
 
 def process_query(row):
     journal_name = row[0] if not pd.isna(row[0]) else "Unknown Journal"
@@ -21,26 +22,25 @@ def process_query(row):
         scraper.scrape()
         scraper.cleanup()
 
-    elif  "IEEE" in publisher:
+    elif "IEEE" in publisher:
         print(f"\n🔍 IEEE Query: {query}")
         scraper = IEEEScraper(queries=[query])
         scraper.scrape()
-        
+
     elif "ASSOC" in publisher:
         print(f"\n🔍 ACM Query: {query}")
         scraper = AcmScraper(queries=[query])
         scraper.scrape()
         scraper.cleanup()
-
-
     else:
         print(f"⏭️ Skipping {journal_name} - Publisher '{publisher}' not supported")
 
+
 def main():
-    df = load_queries(QUERY_FILE)
-    for _, row in df.head(20).iterrows():
+    df= pd.read_csv(QUERY_FILE)
+    for _, row in df[4:20].iterrows():
         process_query(row)
-        
+
 
 if __name__ == "__main__":
     main()

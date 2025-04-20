@@ -81,7 +81,7 @@ class SpringerScraper:
         return overview_text, editor_name, metrics
 
     def scrape(self):
-        output_file = "./output/scraped_data.csv"
+        output_file = "/home/darkside/PycharmProjects/journal-collectors/output/scraped_data.csv"
         file_exists = os.path.isfile(output_file)
 
         try:

@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
+
 logging.basicConfig(
     filename='debug.log',  # or use 'logs/ieee_scraper.log' in a logs folder
     filemode='a',
@@ -14,14 +15,16 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
 class AcmScraper:
     BASE_URL = "https://dl.acm.org"
-    CSV_FILE = "./output/scraped_data.csv"
+    CSV_FILE = "/home/darkside/PycharmProjects/journal-collectors/output/scraped_data.csv"
     HEADERS = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
 
     def __init__(self, queries: list[str]):
         self.queries = queries
-        self.scraped_count = 0 
+        self.scraped_count = 0
         self.driver = self._setup_driver()
         self.logger = self._setup_logger()
 
@@ -46,13 +49,13 @@ class AcmScraper:
         for query in self.queries:
             scraped_count = 0
             for page in range(1, 300):  # First 30 pages
-                
+
                 search_url = (
-                                f"{self.BASE_URL}/action/doSearch?"
-                                f"AllField={query}&pageSize=20&startPage={page}&AfterYear=2000&BeforeYear=2020"
-                            )   
+                    f"{self.BASE_URL}/action/doSearch?"
+                    f"AllField={query}&pageSize=20&startPage={page}&AfterYear=2000&BeforeYear=2020&ContentItemType=research-article&SeriesKey=todaes"
+                )
                 self.driver.get(search_url)
-                
+
                 try:
                     WebDriverWait(self.driver, 20).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, "h3.issue-item__title"))
@@ -64,7 +67,7 @@ class AcmScraper:
                         title = h3.get_text(strip=True)
                         link = self.BASE_URL + h3.find('a')['href']
                         self._scrape_article(link)
-                        
+
                     print()
 
                 except Exception as e:
@@ -80,7 +83,8 @@ class AcmScraper:
             soup = BeautifulSoup(self.driver.page_source, "html.parser")
 
             paper_title = soup.select_one("h1[property='name']").text.strip()
-            authors = [a.get_text(strip=True) for a in soup.select("span[property='author'] span[property='givenName'], span[property='author'] span[property='familyName']")]
+            authors = [a.get_text(strip=True) for a in soup.select(
+                "span[property='author'] span[property='givenName'], span[property='author'] span[property='familyName']")]
             abstract_section = soup.select_one("section#abstract > div[role='paragraph']")
             published_span = soup.select_one("div.core-published span.core-date-published")
             published_date = published_span.get_text(strip=True) if published_span else "Unknown"
@@ -90,9 +94,12 @@ class AcmScraper:
 
             journal = volume = issue = "Unknown"
             if journal_info:
-                journal = journal_info.select_one("span[property='name']").get_text(strip=True) if journal_info.select_one("span[property='name']") else "Unknown"
-                volume = journal_info.select_one("span[property='volumeNumber']").get_text(strip=True) if journal_info.select_one("span[property='volumeNumber']") else "N/A"
-                issue = journal_info.select_one("span[property='issueNumber']").get_text(strip=True) if journal_info.select_one("span[property='issueNumber']") else "N/A"
+                journal = journal_info.select_one("span[property='name']").get_text(
+                    strip=True) if journal_info.select_one("span[property='name']") else "Unknown"
+                volume = journal_info.select_one("span[property='volumeNumber']").get_text(
+                    strip=True) if journal_info.select_one("span[property='volumeNumber']") else "N/A"
+                issue = journal_info.select_one("span[property='issueNumber']").get_text(
+                    strip=True) if journal_info.select_one("span[property='issueNumber']") else "N/A"
 
             data = {
                 "Title": paper_title,

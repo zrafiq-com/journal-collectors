@@ -30,7 +30,7 @@ class IEEEScraper:
         chrome_options.add_argument('--disable-dev-shm-usage')
         self.driver = webdriver.Chrome(options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
-        self.csv_filename = "./output/scraped_data.csv"
+        self.csv_filename = "/home/darkside/PycharmProjects/journal-collectors/output/scraped_data.csv"
         self.original_window = None
         self.total_items_to_scrape = total_items_to_scrape
         self.items_per_page = items_per_page
@@ -144,7 +144,14 @@ class IEEEScraper:
                     logger.info("🛑 Scraping manually stopped by user.")
                     break
 
-                url = f"https://ieeexplore.ieee.org/search/searchresult.jsp?contentType=periodicals&queryText={encoded_query}&highlight=true&returnType=SEARCH&matchPubs=true&rowsPerPage={self.items_per_page}&returnFacets=ALL&ranges=2001_2020_Year&refinements=ContentType:Journals&pageNumber={current_page}"
+                # url = f"https://ieeexplore.ieee.org/search/searchresult.jsp?contentType=periodicals&queryText={encoded_query}&highlight=true&returnType=SEARCH&matchPubs=true&rowsPerPage={self.items_per_page}&returnFacets=ALL&ranges=2001_2020_Year&refinements=ContentType:Journals&pageNumber={current_page}"
+                url = (
+                    f"https://ieeexplore.ieee.org/search/searchresult.jsp?"
+                    f"action=search&matchBoolean=true&"
+                    f"queryText=(%22All%20Metadata%22:{encoded_query})%20AND%20(%22Publication%20Title%22:{encoded_query})&"
+                    f"ranges=2000_2022_Year&highlight=true&returnFacets=ALL&returnType=SEARCH&"
+                    f"matchPubs=true&refinements=ContentType:Journals"
+                )
 
                 print(f"\n🔍 Query: {query} — Page {current_page} — {url}")
                 self.open_site(url)
