@@ -2,18 +2,19 @@ import pandas as pd
 from journal_collectors.scrap_ieee import IEEEScraper
 from journal_collectors.springer_scrap import SpringerScraper
 from journal_collectors.acm_scrap import AcmScraper
+from journal_collectors.elsevier_scrap import ScienceDirectScraper
 
 
 QUERY_FILE = "input.csv"
-SUPPORTED_PUBLISHERS = ["SPRINGER", "IEEE","ASSOC"]
+SUPPORTED_PUBLISHERS = ["SPRINGER", "IEEE","ASSOC","ELSEVIER"]
 
 def load_queries(file_path: str) -> pd.DataFrame:
     return pd.read_csv(file_path, skiprows=1)
 
 def process_query(row):
-    journal_name = row[0] if not pd.isna(row[0]) else "Unknown Journal"
-    query = row[1]
-    publisher = str(row[4]).strip().upper()
+    journal_name = row.iloc[0] if not pd.isna(row.iloc[0]) else "Unknown Journal"
+    query = row.iloc[1]
+    publisher = str(row.iloc[4]).strip().upper()
 
     if "SPRINGER" in publisher:
         print(f"\n🔍 Springer Query: {query}")
@@ -31,8 +32,11 @@ def process_query(row):
         scraper = AcmScraper(queries=[query])
         scraper.scrape()
         scraper.cleanup()
-
-
+        
+    elif "ELSEVIER" in publisher:
+        print(f"Processing ELSEVIER journal: {query}")
+        scraper = ScienceDirectScraper(journal=query)
+        scraper.run()
     else:
         print(f"⏭️ Skipping {journal_name} - Publisher '{publisher}' not supported")
 

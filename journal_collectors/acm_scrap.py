@@ -14,16 +14,31 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 class AcmScraper:
     BASE_URL = "https://dl.acm.org"
     CSV_FILE = "./output/scraped_data.csv"
-    HEADERS = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
+    HEADERS = ["Title",
+               "Authors", 
+               "Publisher",
+               "Year", 
+               "Abstract", 
+               "Journal", 
+               "Volume/Issue", 
+               "Cited By"]
 
     def __init__(self, queries: list[str]):
         self.queries = queries
         self.scraped_count = 0 
+        self.scraped_titles = self._load_scraped_titles()
         self.driver = self._setup_driver()
         self.logger = self._setup_logger()
+    def _load_scraped_titles(self):
+        if not os.path.exists(self.CSV_FILE):
+            return set()
+        with open(self.CSV_FILE, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            return {row['Title'] for row in reader}
 
     def _setup_logger(self):
         logging.basicConfig(
@@ -62,8 +77,13 @@ class AcmScraper:
 
                     for h3 in titles:
                         title = h3.get_text(strip=True)
+                        if title in self.scraped_titles:
+                            print(f"⏩ Skipped already scraped: {title}")
+                            continue
                         link = self.BASE_URL + h3.find('a')['href']
                         self._scrape_article(link)
+                        self.scraped_titles.add(title)  # Add to set after scraping
+
                         
                     print()
 

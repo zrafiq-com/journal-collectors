@@ -25,6 +25,8 @@ class SpringerScraper:
     def __init__(self, queries):
         self.queries = queries
         self.driver = self._setup_driver()
+        self.output_file = "./output/scraped_data.csv"
+        self.scraped_titles = self.load_scraped_titles()
 
     def _setup_driver(self):
         options = webdriver.ChromeOptions()
@@ -37,6 +39,12 @@ class SpringerScraper:
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
         return driver
+    def load_scraped_titles(self):
+        if not os.path.exists(self.output_file):
+            return set()
+        with open(self.output_file, mode="r", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            return set(row["Title"] for row in reader)
 
     def _get_search_results(self, search_query):
         formatted_query = search_query.replace(' ', '+')
@@ -81,7 +89,7 @@ class SpringerScraper:
         return overview_text, editor_name, metrics
 
     def scrape(self):
-        output_file = "./output/scraped_data.csv"
+        output_file = self.output_file
         file_exists = os.path.isfile(output_file)
 
         try:
@@ -98,18 +106,25 @@ class SpringerScraper:
 
                     for item in results:
                         title, detail_link, content_type, published = self._extract_details_from_item(item)
+
+                        if title in self.scraped_titles:
+                            print(f"⏩ Skipping already scraped: {title}")
+                            continue
+
                         overview_text, editor_name, metrics = self._get_detail_page_info(detail_link)
 
                         writer.writerow({
                             "Title": title,
-                            "Authors": editor_name,  # You can parse actual authors if needed
-                            "Publisher": 'SPRINGER',  # Assuming editor is considered publisher
+                            "Authors": editor_name,
+                            "Publisher": 'SPRINGER',
                             "Year": f"Year:{published}",
                             "Abstract": overview_text,
                             "Journal": content_type,
-                            "Volume/Issue": "N/A",  # Placeholder, you can extract if available
-                            "Cited By": "N/A"  # Placeholder, you can extract if available
+                            "Volume/Issue": "N/A",
+                            "Cited By": "N/A"
                         })
+
+                        self.scraped_titles.add(title)
 
                         self.driver.close()
                         self.driver.switch_to.window(self.driver.window_handles[0])
