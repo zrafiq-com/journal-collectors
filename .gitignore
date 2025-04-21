@@ -9,15 +9,17 @@ build/
 
 # Virtualenv
 env/
+temp_auto_push.bat
 venv/
 ENV/
 *.env
 
 
 # IDEs
-.vscode/
 .idea/
 
 # OS files
 Thumbs.db
 .DS_Store
+.gitignore
+temp_interactive_push.bat
