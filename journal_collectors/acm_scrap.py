@@ -30,16 +30,17 @@ class AcmScraper:
 
     def __init__(self, queries: list[str]):
         self.queries = queries
-        self.scraped_count = 0 
-        self.scraped_titles = self._load_scraped_titles()
+        self.scraped_count = 0
+        self.executed_urls = self._load_executed_urls()
         self.driver = self._setup_driver()
         self.logger = self._setup_logger()
-    def _load_scraped_titles(self):
-        if not os.path.exists(self.CSV_FILE):
+
+    def _load_executed_urls(self):
+        if not os.path.exists(self.EXECUTED_URLS_FILE):
             return set()
-        with open(self.CSV_FILE, newline='', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            return {row['Title'] for row in reader}
+        with open(self.EXECUTED_URLS_FILE, newline='', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            return set(row[0] for row in reader)
 
     def _setup_logger(self):
         logging.basicConfig(
@@ -62,7 +63,6 @@ class AcmScraper:
         for query in self.queries:
             scraped_count = 0
             for page in range(1, 300):  # First 30 pages
-
                 search_url = (
                     f"{self.BASE_URL}/action/doSearch?"
                     f"AllField={query}&pageSize=20&startPage={page}&AfterYear=2000&BeforeYear=2020&ContentItemType=research-article&SeriesKey=todaes"
@@ -78,12 +78,17 @@ class AcmScraper:
 
                     for h3 in titles:
                         title = h3.get_text(strip=True)
-                        if title in self.scraped_titles:
-                            print(f"⏩ Skipped already scraped: {title}")
-                            continue
                         link = self.BASE_URL + h3.find('a')['href']
+                        
+                        # Check if the link is already executed
+                        if link in self.executed_urls:
+                            print(f"⏩ Skipped already executed: {link}")
+                            continue
+
                         self._scrape_article(link)
-                        self.scraped_titles.add(title)  # Add to set after scraping
+                        self.executed_urls.add(link)  # Add to set after scraping
+                        self._save_executed_url(link)
+
                 except Exception as e:
                     logger.warning(f"⚠️ Failed to load search page {page} for query '{query}': {e}")
                     continue
@@ -139,6 +144,11 @@ class AcmScraper:
             if not file_exists:
                 writer.writeheader()
             writer.writerow(row_data)
+
+    def _save_executed_url(self, url):
+        with open(self.EXECUTED_URLS_FILE, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow([url])
 
     def cleanup(self):
         self.driver.quit()

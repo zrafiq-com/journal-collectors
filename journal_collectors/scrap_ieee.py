@@ -2,22 +2,21 @@ import os
 import csv
 import time
 import threading
+import logging
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import logging
-
-
 
 logging.basicConfig(
-    filename='debug.log',  # or use 'logs/ieee_scraper.log' in a logs folder
+    filename='debug.log',
     filemode='a',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 
 class IEEEScraper:
     stop_scraping = False
@@ -28,40 +27,52 @@ class IEEEScraper:
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
+
         self.driver = webdriver.Chrome(options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
-        self.csv_filename = "/home/darkside/PycharmProjects/journal-collectors/output/scraped_data.csv"
-        self.scraped_titles = self.load_scraped_titles()
+        self.csv_filename = "./output/scraped_data.csv"
+        self.executed_urls_file = "executed_urls.csv"
+
         self.original_window = None
         self.total_items_to_scrape = total_items_to_scrape
         self.items_per_page = items_per_page
         self.queries = queries
+        self.executed_urls = set()
+
         self.create_csv_file()
+        self.load_executed_urls()
         threading.Thread(target=self.wait_for_key, daemon=True).start()
 
     def wait_for_key(self):
         input("🔴 Press ENTER anytime to stop scraping...\n")
         IEEEScraper.stop_scraping = True
-        
-        
-    def load_scraped_titles(self):
-        if not os.path.exists(self.csv_filename):
-            return set()
-        with open(self.csv_filename, mode="r", encoding="utf-8") as file:
-            reader = csv.DictReader(file)
-            return set(row["Title"] for row in reader)
 
     def create_csv_file(self):
+        os.makedirs(os.path.dirname(self.csv_filename), exist_ok=True)
         if not os.path.exists(self.csv_filename):
             with open(self.csv_filename, mode="w", newline="", encoding="utf-8") as file:
-                writer = csv.DictWriter(file, fieldnames=["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
+                writer = csv.DictWriter(file, fieldnames=["Title", "Link", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
                 writer.writeheader()
+        if not os.path.exists(self.executed_urls_file):
+            with open(self.executed_urls_file, mode="w", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                writer.writerow(["URL"])
+
+    def load_executed_urls(self):
+        if os.path.exists(self.executed_urls_file):
+            with open(self.executed_urls_file, mode="r", encoding="utf-8") as file:
+                reader = csv.reader(file)
+                next(reader, None)
+                for row in reader:
+                    if row:
+                        self.executed_urls.add(row[0])
 
     def save_data_to_csv(self, data):
         with open(self.csv_filename, mode="a", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
+            writer = csv.DictWriter(file, fieldnames=["Title", "Link", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
             writer.writerow({
                 "Title": data[0],
+                "Link": data[8],
                 "Authors": data[1],
                 "Publisher": data[2],
                 "Year": data[3],
@@ -70,6 +81,16 @@ class IEEEScraper:
                 "Volume/Issue": data[6],
                 "Cited By": data[7]
             })
+
+    def save_executed_url(self, url):
+        if url not in self.executed_urls:
+            with open(self.executed_urls_file, mode="a", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                writer.writerow([url])
+            self.executed_urls.add(url)
+
+    def is_url_executed(self, url):
+        return url in self.executed_urls
 
     def open_site(self, url):
         self.driver.get(url)
@@ -113,7 +134,7 @@ class IEEEScraper:
 
         abstract = self.extract_abstract(link)
 
-        return [title, authors, publisher, year, abstract, journal, f"{volume} | {issue}", cited_by]
+        return [title, authors, publisher, year, abstract, journal, f"{volume} | {issue}", cited_by, link]
 
     def extract_results(self, limit):
         scraped_count = 0
@@ -124,14 +145,14 @@ class IEEEScraper:
                     return scraped_count
                 try:
                     data = self.extract_item_data(item)
-                    title = data[0]
+                    link = data[8]
 
-                    if title in self.scraped_titles:
-                        print(f"⏩ Skipping already scraped: {title}")
+                    if self.is_url_executed(link):
+                        print(f"⏩ Skipping already executed item: {link}")
                         continue
 
                     self.save_data_to_csv(data)
-                    self.scraped_titles.add(title)
+                    self.save_executed_url(link)
                     scraped_count += 1
                     print(f"✅ Scraped item {scraped_count}")
                 except Exception as e:
@@ -140,7 +161,6 @@ class IEEEScraper:
             logger.warning("⚠️ No results found on this page.")
             return None
         return scraped_count
-
 
     def encode_spaces(self, text: str) -> str:
         return text.replace(" ", "%20")
@@ -161,16 +181,20 @@ class IEEEScraper:
                     logger.info("🛑 Scraping manually stopped by user.")
                     break
 
-                # url = f"https://ieeexplore.ieee.org/search/searchresult.jsp?contentType=periodicals&queryText={encoded_query}&highlight=true&returnType=SEARCH&matchPubs=true&rowsPerPage={self.items_per_page}&returnFacets=ALL&ranges=2001_2020_Year&refinements=ContentType:Journals&pageNumber={current_page}"
                 url = (
                     f"https://ieeexplore.ieee.org/search/searchresult.jsp?"
                     f"action=search&matchBoolean=true&"
                     f"queryText=(%22All%20Metadata%22:{encoded_query})%20AND%20(%22Publication%20Title%22:{encoded_query})&"
                     f"ranges=2000_2022_Year&highlight=true&returnFacets=ALL&returnType=SEARCH&"
-                    f"matchPubs=true&refinements=ContentType:Journals"
+                    f"matchPubs=true&refinements=ContentType:Journals&pageNumber={current_page}"
                 )
 
-                print(f"\n🔍 Query: {query} — Page {current_page} — {url}")
+                if self.is_url_executed(url):
+                    print(f"⏩ Skipping already executed page: {url}")
+                    current_page += 1
+                    continue
+
+                print(f"\n🔍 Query: {query} — Page {current_page}")
                 self.open_site(url)
                 scraped_now = self.extract_results(self.items_per_page)
 
@@ -178,6 +202,7 @@ class IEEEScraper:
                     logger.warning("⚠️ No results found, moving to next query.")
                     break
 
+                self.save_executed_url(url)
                 scraped_count += scraped_now
                 current_page += 1
                 time.sleep(5)
