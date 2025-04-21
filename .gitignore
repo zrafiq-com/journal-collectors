@@ -15,7 +15,6 @@ ENV/
 
 
 # IDEs
-.vscode/
 .idea/
 
 # OS files
