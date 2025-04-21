@@ -31,6 +31,7 @@ class IEEEScraper:
         self.driver = webdriver.Chrome(options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
         self.csv_filename = "/home/darkside/PycharmProjects/journal-collectors/output/scraped_data.csv"
+        self.scraped_titles = self.load_scraped_titles()
         self.original_window = None
         self.total_items_to_scrape = total_items_to_scrape
         self.items_per_page = items_per_page
@@ -41,6 +42,14 @@ class IEEEScraper:
     def wait_for_key(self):
         input("🔴 Press ENTER anytime to stop scraping...\n")
         IEEEScraper.stop_scraping = True
+        
+        
+    def load_scraped_titles(self):
+        if not os.path.exists(self.csv_filename):
+            return set()
+        with open(self.csv_filename, mode="r", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            return set(row["Title"] for row in reader)
 
     def create_csv_file(self):
         if not os.path.exists(self.csv_filename):
@@ -115,7 +124,14 @@ class IEEEScraper:
                     return scraped_count
                 try:
                     data = self.extract_item_data(item)
+                    title = data[0]
+
+                    if title in self.scraped_titles:
+                        print(f"⏩ Skipping already scraped: {title}")
+                        continue
+
                     self.save_data_to_csv(data)
+                    self.scraped_titles.add(title)
                     scraped_count += 1
                     print(f"✅ Scraped item {scraped_count}")
                 except Exception as e:
@@ -124,6 +140,7 @@ class IEEEScraper:
             logger.warning("⚠️ No results found on this page.")
             return None
         return scraped_count
+
 
     def encode_spaces(self, text: str) -> str:
         return text.replace(" ", "%20")
