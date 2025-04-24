@@ -51,7 +51,7 @@ class IEEEScraper:
         os.makedirs(os.path.dirname(self.csv_filename), exist_ok=True)
         if not os.path.exists(self.csv_filename):
             with open(self.csv_filename, mode="w", newline="", encoding="utf-8") as file:
-                writer = csv.DictWriter(file, fieldnames=["Title", "Link", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
+                writer = csv.DictWriter(file, fieldnames=["Title",  "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
                 writer.writeheader()
         if not os.path.exists(self.executed_urls_file):
             with open(self.executed_urls_file, mode="w", newline="", encoding="utf-8") as file:
@@ -69,10 +69,9 @@ class IEEEScraper:
 
     def save_data_to_csv(self, data):
         with open(self.csv_filename, mode="a", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=["Title", "Link", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
+            writer = csv.DictWriter(file, fieldnames=["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
             writer.writerow({
                 "Title": data[0],
-                "Link": data[8],
                 "Authors": data[1],
                 "Publisher": data[2],
                 "Year": data[3],

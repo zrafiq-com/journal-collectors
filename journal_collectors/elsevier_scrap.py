@@ -24,7 +24,7 @@ except ImportError:
     from selenium.webdriver.common.by import By
     from selenium.webdriver.chrome.options import Options
 
-def load_scraped_titles(csv_file="./output/scraped_data.csv"):
+def load_scraped_titles(csv_file="./output/elsevier_data.csv"):
     if not os.path.exists(csv_file):
         return set()
     with open(csv_file, mode='r', encoding='utf-8') as file:
@@ -37,7 +37,7 @@ class ScienceDirectScraperDetails:
         self.url = url
         self.driver = shared_driver
         self.article_data = {
-            "title": "", "writers": "", "affiliation": "",
+            "title": "", "writers": "", "Publisher": "",
             "publish_date": "", "abstract": "","Journal": "Elsevier",
             "Volume/Issue": "N/A", "Cited By": "N/A",
             
@@ -120,13 +120,13 @@ class ScienceDirectScraperDetails:
                 if wrapper:
                     aff_dl = wrapper.find('dl', class_='affiliation')
                     if aff_dl:
-                        self.article_data["affiliation"] = aff_dl.get_text().strip()
+                        self.article_data["Publisher"] = aff_dl.get_text().strip()
                         # print(f" affiliation: {self.article_data['affiliation']}")
 
                     pub_p = wrapper.find('p', class_='u-margin-s-bottom')
                     if pub_p:
                         self.article_data["publish_date"] = pub_p.get_text().strip()
-                        # print(f" publish date: {self.article_data['publish_date']}")
+                        # print(f" Year: {self.article_data['publish_date']}")
 
         # Abstract
         abstract_elem = self.soup.find('div', class_='abstract author')
@@ -171,18 +171,20 @@ class ScienceDirectScraperDetails:
         return True
 
     def save_data(self):
-            csv_file = "/home/dev/Desktop/clone scrap/journal-collectors/output/scraped_data.csv"
-            fieldnames = [
-                "Title", "Authors", "Affiliation",
-                "Publish Date", "Abstract", "Journal",
+            csv_file = "./output/elsevier_data.csv"
+            
+            
+            HEADERS = [
+                "Title", "Authors", "Publisher",
+                "Year", "Abstract", "Journal",
                 "Volume/Issue", "Cited By",
             ]
 
             row_data = {
                 "Title": self.article_data["title"],
                 "Authors": self.article_data["writers"],
-                "Affiliation": self.article_data["affiliation"],
-                "Publish Date": self.article_data["publish_date"],
+                "Publisher": self.article_data["Publisher"],
+                "Year": self.article_data["publish_date"],
                 "Abstract": self.article_data["abstract"],
                 "Journal": "Elsevier",
                 "Volume/Issue": "N/A",
@@ -197,7 +199,7 @@ class ScienceDirectScraperDetails:
             file_exists = os.path.isfile(csv_file)
 
             with open(csv_file, mode='a', newline='', encoding='utf-8') as file:
-                writer = csv.DictWriter(file, fieldnames=fieldnames)
+                writer = csv.DictWriter(file, fieldnames=HEADERS)
                 if not file_exists:
                     writer.writeheader()
                 writer.writerow(row_data)
@@ -217,7 +219,7 @@ class ScienceDirectScraperDetails:
 class ScienceDirectScraper:
     BASE_URL = "https://www.sciencedirect.com/search"
 
-    def __init__(self, journal=None, start_year=2000, end_year=2020, offset=0, show=25):
+    def __init__(self, journal=None, start_year=2000, end_year=2020, offset=0, show=100):
         self.journal = journal
         self.start_year = start_year
         self.end_year = end_year

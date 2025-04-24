@@ -9,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 
 logging.basicConfig(
-    filename='debug.log',  # or use 'logs/ieee_scraper.log' in a logs folder
+    filename='debug.log',
     filemode='a',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -27,6 +27,9 @@ class AcmScraper:
                "Journal", 
                "Volume/Issue", 
                "Cited By"]
+    # CSV_FILE = "./output/acm_data.csv"
+    EXECUTED_URLS_FILE = "./executed_urls.csv"
+    HEADERS = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
 
     def __init__(self, queries: list[str]):
         self.queries = queries
@@ -124,7 +127,7 @@ class AcmScraper:
                 "Title": paper_title,
                 "Authors": ", ".join(authors),
                 "Publisher": "ACM",
-                "Year": f"Year:{published_year}",
+                "Year": f"{published_year}",
                 "Abstract": abstract,
                 "Journal": journal,
                 "Volume/Issue": f"Volume:{volume}/Issue:{issue}",

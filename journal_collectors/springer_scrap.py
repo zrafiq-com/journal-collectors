@@ -39,11 +39,30 @@ class SpringerScraper:
         driver = webdriver.Chrome(service=service, options=options)
         return driver
     def load_scraped_titles(self):
-        if not os.path.exists(self.output_file):
+        HEADERS = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
+
+        if not os.path.exists(self.output_file) or os.path.getsize(self.output_file) == 0:
+            with open(self.output_file, mode='w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=HEADERS)
+                writer.writeheader()
             return set()
-        with open(self.output_file, mode="r", encoding="utf-8") as file:
-            reader = csv.DictReader(file)
-            return set(row["Title"] for row in reader)
+
+        with open(self.output_file, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames != HEADERS:
+                logger.warning("Invalid/missing headers found. Resetting file headers.")
+                rows = list(reader)  # read old data (if any)
+                with open(self.output_file, mode='w', newline='', encoding='utf-8') as f_write:
+                    writer = csv.DictWriter(f_write, fieldnames=HEADERS)
+                    writer.writeheader()
+                    # Optional: write old data if keys match new HEADERS
+                    for row in rows:
+                        if "Title" in row:
+                            writer.writerow({key: row.get(key, "N/A") for key in HEADERS})
+                return set(row.get("Title", "") for row in rows if "Title" in row)
+
+            return set(row["Title"] for row in reader if "Title" in row)
+
 
     def _get_search_results(self, search_query):
         formatted_query = search_query.replace(' ', '+')
@@ -116,7 +135,7 @@ class SpringerScraper:
                             "Title": title,
                             "Authors": editor_name,
                             "Publisher": 'SPRINGER',
-                            "Year": f"Year:{published}",
+                            "Year": published,
                             "Abstract": overview_text,
                             "Journal": content_type,
                             "Volume/Issue": "N/A",
