@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 class AcmScraper:
     BASE_URL = "https://dl.acm.org"
-    CSV_FILE = "/home/dev/Desktop/clone scrap/journal-collectors/output/scraped_data.csv"
     HEADERS = ["Title",
                "Authors", 
                "Publisher",
@@ -27,7 +26,7 @@ class AcmScraper:
                "Journal", 
                "Volume/Issue", 
                "Cited By"]
-    # CSV_FILE = "./output/acm_data.csv"
+    CSV_FILE = "./output/acm_data.csv"
     EXECUTED_URLS_FILE = "./executed_urls.csv"
     HEADERS = ["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"]
 

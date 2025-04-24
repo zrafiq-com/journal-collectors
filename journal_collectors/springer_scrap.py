@@ -24,7 +24,7 @@ class SpringerScraper:
     def __init__(self, queries):
         self.queries = queries
         self.driver = self._setup_driver()
-        self.output_file = "/home/dev/Desktop/clone scrap/journal-collectors/output/scraped_data.csv"
+        self.output_file = "./output/springer_data.csv"
         self.scraped_titles = self.load_scraped_titles()
 
     def _setup_driver(self):
@@ -137,7 +137,7 @@ class SpringerScraper:
                             "Publisher": 'SPRINGER',
                             "Year": published,
                             "Abstract": overview_text,
-                            "Journal": content_type,
+                            "Journal": search_query,
                             "Volume/Issue": "N/A",
                             "Cited By": "N/A"
                         })

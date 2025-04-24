@@ -27,7 +27,7 @@ def process_query(row):
 
 def main():
     df= pd.read_csv(QUERY_FILE)
-    for _, row in df[4:20].iterrows():
+    for _, row in df[0:20].iterrows():
         process_query(row)
 
 

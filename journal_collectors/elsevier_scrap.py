@@ -33,16 +33,16 @@ def load_scraped_titles(csv_file="./output/elsevier_data.csv"):
 
 class ScienceDirectScraperDetails:
     BASE_URL = "https://www.sciencedirect.com/search"
-    def __init__(self, url, shared_driver):
+    def __init__(self, url, shared_driver, journal_name=""):
         self.url = url
         self.driver = shared_driver
+        self.journal_name = journal_name
         self.article_data = {
             "title": "", "writers": "", "Publisher": "",
-            "publish_date": "", "abstract": "","Journal": "Elsevier",
+            "publish_date": "", "abstract": "", "Journal": journal_name,
             "Volume/Issue": "N/A", "Cited By": "N/A",
-            
-            
         }
+
         self.soup = None
 
     def load_page(self):
@@ -183,17 +183,13 @@ class ScienceDirectScraperDetails:
             row_data = {
                 "Title": self.article_data["title"],
                 "Authors": self.article_data["writers"],
-                "Publisher": self.article_data["Publisher"],
+                "Publisher": "Elsevier",
                 "Year": self.article_data["publish_date"],
                 "Abstract": self.article_data["abstract"],
-                "Journal": "Elsevier",
+                "Journal": self.journal_name,
                 "Volume/Issue": "N/A",
                 "Cited By": "N/A",
-                # "Keywords": ", ".join(self.article_data["keywords"]),
-                # "References": "; ".join([
-                #     f"{ref['authors']} - {ref['title']} ({ref['host']})"
-                #     for ref in self.article_data["references"]
-                # ])
+                
             }
 
             file_exists = os.path.isfile(csv_file)
@@ -318,7 +314,7 @@ class ScienceDirectScraper:
 
             print(f"🔍 Scraping: {article['title']}")
             print(f"Link: {article['url']}")
-            scraper = ScienceDirectScraperDetails(article['url'], self.driver)
+            scraper = ScienceDirectScraperDetails(article['url'], self.driver, journal_name=self.journal)
             scraper.run()
             print("-" * 50)
             time.sleep(wait_time)

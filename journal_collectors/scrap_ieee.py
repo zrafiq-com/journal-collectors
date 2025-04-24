@@ -30,7 +30,7 @@ class IEEEScraper:
 
         self.driver = webdriver.Chrome(options=chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
-        self.csv_filename = "/home/dev/Desktop/clone scrap/journal-collectors/output/scraped_data.csv"
+        self.csv_filename = "./output/ieee_data.csv"
         self.executed_urls_file = "executed_urls.csv"
 
         self.original_window = None
