@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class AcmScraper:
     BASE_URL = "https://dl.acm.org"
-    CSV_FILE = "/home/darkside/PycharmProjects/journal-collectors/output/scraped_data.csv"
+    CSV_FILE = "/home/dev/Desktop/clone scrap/journal-collectors/output/scraped_data.csv"
     HEADERS = ["Title",
                "Authors", 
                "Publisher",

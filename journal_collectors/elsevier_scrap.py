@@ -14,6 +14,8 @@ try:
     from webdriver_manager.chrome import ChromeDriverManager
     from selenium.webdriver.common.by import By
     from selenium.webdriver.chrome.options import Options
+    import undetected_chromedriver as uc
+    import time
 except ImportError:
     os.system('pip install selenium webdriver-manager beautifulsoup4')
     from selenium import webdriver
@@ -44,16 +46,23 @@ class ScienceDirectScraperDetails:
         self.soup = None
 
     def load_page(self):
-        self.driver.get(self.url)
-        time.sleep(3)
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
-        for i in range(3):
-            scroll_point = self.driver.execute_script("return document.body.scrollHeight") * (i+1) / 3
-            self.driver.execute_script(f"window.scrollTo(0, {scroll_point});")
+        try:
+            print(f"🔗 Loading page: {self.url}")
+            self.driver.get(self.url)
+            time.sleep(3)
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
+            for i in range(3):
+                scroll_point = self.driver.execute_script("return document.body.scrollHeight") * (i + 1) / 3
+                self.driver.execute_script(f"window.scrollTo(0, {scroll_point});")
+                time.sleep(1)
+            self.driver.execute_script("window.scrollTo(0, 0);")
             time.sleep(1)
-        self.driver.execute_script("window.scrollTo(0, 0);")
-        time.sleep(1)
+        except Exception as e:
+            print(f"❌ Failed to load page {self.url}: {e}")
+            self.driver.save_screenshot("load_page_crash.png")
+            raise
+
 
     def handle_cookie_consent(self):
         try:
@@ -162,7 +171,7 @@ class ScienceDirectScraperDetails:
         return True
 
     def save_data(self):
-            csv_file = "./output/scraped_data.csv"
+            csv_file = "/home/dev/Desktop/clone scrap/journal-collectors/output/scraped_data.csv"
             fieldnames = [
                 "Title", "Authors", "Affiliation",
                 "Publish Date", "Abstract", "Journal",
@@ -217,16 +226,31 @@ class ScienceDirectScraper:
         self.driver = self._setup_driver()
 
     @classmethod
-    def build_query_url(cls, journal, start_year, end_year, offset=0, show=25):
+    def build_query_url(cls, journal, start_year, end_year, offset=0, show=100):
         journal = journal.replace(" ", "%20").replace("&", "%26")
         return f"{cls.BASE_URL}?pub={journal}&date={start_year}-{end_year}&show={show}&offset={offset}"
 
     def _setup_driver(self):
+
         options = uc.ChromeOptions()
+
+        # Debugging: show the browser (remove --headless)
+        # options.add_argument('--headless')  # keep this disabled for now
         options.add_argument('--no-sandbox')
-        options.add_argument('--disable-blink-features')
+        options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-blink-features=AutomationControlled')
-        return uc.Chrome(options=options)
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-infobars")
+        options.add_argument("--disable-extensions")
+
+        try:
+            driver = uc.Chrome(options=options)
+            driver.set_page_load_timeout(30)
+            time.sleep(2)  # give Chrome time to fully start
+            return driver
+        except Exception as e:
+            print(f"❌ Failed to start ChromeDriver: {e}")
+            raise
 
     def get_dynamic_url(self):
         final_url = self.build_query_url(
@@ -240,7 +264,33 @@ class ScienceDirectScraper:
 
     def scrape(self):
         url = self.get_dynamic_url()
-        self.driver.get(url)
+        print(f"🔗 Scraping URL: {url}")
+        try:
+            self.driver.get(url)
+        except Exception as e:
+            print(f"❌ Initial scrape failed: {e}")
+            try:
+                # Try to save screenshot only if driver might still be alive
+                self.driver.save_screenshot("scrape_failure.png")
+            except Exception as ss_err:
+                print(f"⚠️ Could not take screenshot (likely driver is dead): {ss_err}")
+
+            print("🔁 Restarting driver and retrying scrape...")
+
+            try:
+                self.driver.quit()
+            except:
+                pass  # ignore if already closed
+
+            self.driver = self._setup_driver()
+            time.sleep(2)
+
+            try:
+                self.driver.get(url)
+            except Exception as e2:
+                print(f"🔥 Retried scrape failed again: {e2}")
+                raise
+
         time.sleep(5)
         soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         results = soup.find_all("div", class_="result-item-container")
@@ -253,6 +303,8 @@ class ScienceDirectScraper:
                 link = "https://www.sciencedirect.com" + a_tag['href']
                 data.append({'title': title, 'url': link})
         return data
+
+
 
     def open_each_url_sequentially(self, articles, wait_time=5):
         scraped_titles = load_scraped_titles()

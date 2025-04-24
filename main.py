@@ -4,7 +4,7 @@ from journal_collectors.springer_scrap import SpringerScraper
 from journal_collectors.acm_scrap import AcmScraper
 from journal_collectors.elsevier_scrap import ScienceDirectScraper
 
-QUERY_FILE = "/home/darkside/PycharmProjects/journal-collectors/input.csv"
+QUERY_FILE = "/home/dev/Desktop/clone scrap/journal-collectors/input.csv"
 SUPPORTED_PUBLISHERS = ["SPRINGER", "IEEE","ASSOC","ELSEVIER"]
 
 
