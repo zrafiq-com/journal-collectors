@@ -50,15 +50,14 @@ class ScienceDirectScraperDetails:
         try:
             print(f"🔗 Loading page: {self.url}")
             self.driver.get(self.url)
-            time.sleep(3)
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)
+            time.sleep(1)
+           
             for i in range(3):
                 scroll_point = self.driver.execute_script("return document.body.scrollHeight") * (i + 1) / 3
                 self.driver.execute_script(f"window.scrollTo(0, {scroll_point});")
-                time.sleep(1)
+                
             self.driver.execute_script("window.scrollTo(0, 0);")
-            time.sleep(1)
+            
         except Exception as e:
             print(f"❌ Failed to load page {self.url}: {e}")
             self.driver.save_screenshot("load_page_crash.png")
@@ -71,7 +70,7 @@ class ScienceDirectScraperDetails:
             if cookie_buttons:
                 print("Clicking cookie consent button...")
                 cookie_buttons[0].click()
-                time.sleep(2)
+                time.sleep(1)
         except Exception as e:
             print(f"No cookie dialog or error: {e}")
 
@@ -110,7 +109,7 @@ class ScienceDirectScraperDetails:
                 try:
                     show_more_btn = self.driver.find_element(By.ID, "show-more-btn")
                     show_more_btn.click()
-                    time.sleep(2)
+                    time.sleep(1)
                     self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
                     banner = self.soup.find('div', id='banner')
                     wrapper = banner.find('div', class_='wrapper') if banner else None
@@ -291,7 +290,7 @@ class ScienceDirectScraper:
         if not self.safe_driver_get(url):
             return []
 
-        time.sleep(5)
+        time.sleep(2)
         soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         results = soup.find_all("div", class_="result-item-container")
 
@@ -306,7 +305,7 @@ class ScienceDirectScraper:
 
 
 
-    def open_each_url_sequentially(self, articles, wait_time=5):
+    def open_each_url_sequentially(self, articles, wait_time=2):
         scraped_titles = load_scraped_titles()
 
         for article in articles:
