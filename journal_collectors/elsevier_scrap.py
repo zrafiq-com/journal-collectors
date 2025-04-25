@@ -2,7 +2,8 @@ import csv
 import os
 import time
 import pandas as pd 
-        
+from selenium.common.exceptions import InvalidSessionIdException, WebDriverException
+from urllib3.exceptions import MaxRetryError
         
         
 from bs4 import BeautifulSoup
@@ -227,7 +228,30 @@ class ScienceDirectScraper:
     def build_query_url(cls, journal, start_year, end_year, offset=0, show=100):
         journal = journal.replace(" ", "%20").replace("&", "%26")
         return f"{cls.BASE_URL}?pub={journal}&date={start_year}-{end_year}&show={show}&offset={offset}"
-
+    
+    def safe_driver_get(self, url, retries=3):
+        for attempt in range(1, retries + 1):
+            try:
+                print(f"🌐 Navigating to: {url} (Attempt {attempt})")
+                self.driver.get(url)
+                return True
+            except (InvalidSessionIdException, WebDriverException, MaxRetryError, ConnectionRefusedError) as e:
+                print(f"⚠️ Attempt {attempt} failed: {e}")
+                try:
+                    self.driver.quit()
+                except:
+                    pass
+                print("♻️ Restarting Chrome driver...")
+                time.sleep(2)
+                try:
+                    self.driver = self._setup_driver()
+                except Exception as setup_error:
+                    print(f"🚨 Could not restart driver: {setup_error}")
+                    return False
+                time.sleep(3)
+        print(f"❌ All {retries} attempts failed for: {url}")
+        return False
+    
     def _setup_driver(self):
 
         options = uc.ChromeOptions()
@@ -263,31 +287,9 @@ class ScienceDirectScraper:
     def scrape(self):
         url = self.get_dynamic_url()
         print(f"🔗 Scraping URL: {url}")
-        try:
-            self.driver.get(url)
-        except Exception as e:
-            print(f"❌ Initial scrape failed: {e}")
-            try:
-                # Try to save screenshot only if driver might still be alive
-                self.driver.save_screenshot("scrape_failure.png")
-            except Exception as ss_err:
-                print(f"⚠️ Could not take screenshot (likely driver is dead): {ss_err}")
 
-            print("🔁 Restarting driver and retrying scrape...")
-
-            try:
-                self.driver.quit()
-            except:
-                pass  # ignore if already closed
-
-            self.driver = self._setup_driver()
-            time.sleep(2)
-
-            try:
-                self.driver.get(url)
-            except Exception as e2:
-                print(f"🔥 Retried scrape failed again: {e2}")
-                raise
+        if not self.safe_driver_get(url):
+            return []
 
         time.sleep(5)
         soup = BeautifulSoup(self.driver.page_source, 'html.parser')

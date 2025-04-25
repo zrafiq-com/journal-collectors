@@ -64,80 +64,91 @@ class AcmScraper:
     def scrape(self):
         for query in self.queries:
             scraped_count = 0
-            for page in range(1, 300):  # First 30 pages
+            for page in range(1, 300):  # First 300 pages
                 search_url = (
                     f"{self.BASE_URL}/action/doSearch?"
                     f"AllField={query}&pageSize=20&startPage={page}&AfterYear=2000&BeforeYear=2020&ContentItemType=research-article&SeriesKey=todaes"
                 )
-                self.driver.get(search_url)
 
-                try:
-                    WebDriverWait(self.driver, 20).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "h3.issue-item__title"))
-                    )
-                    soup = BeautifulSoup(self.driver.page_source, "html.parser")
-                    titles = soup.select("h3.issue-item__title")
+                # Retry logic for loading the search page
+                for attempt in range(3):
+                    try:
+                        self.driver.get(search_url)
+                        WebDriverWait(self.driver, 20).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, "h3.issue-item__title"))
+                        )
+                        soup = BeautifulSoup(self.driver.page_source, "html.parser")
+                        titles = soup.select("h3.issue-item__title")
+                        break  # Exit retry loop if successful
+                    except Exception as e:
+                        logger.warning(f"⚠️ Attempt {attempt+1}/3 failed to load page {page} for query '{query}': {e}")
+                        time.sleep(5)
+                else:
+                    logger.error(f"❌ All retry attempts failed for page {page} of query '{query}'")
+                    continue
 
-                    for h3 in titles:
+                for h3 in titles:
+                    try:
                         title = h3.get_text(strip=True)
                         link = self.BASE_URL + h3.find('a')['href']
-                        
-                        # Check if the link is already executed
+
                         if link in self.executed_urls:
                             print(f"⏩ Skipped already executed: {link}")
                             continue
 
                         self._scrape_article(link)
-                        self.executed_urls.add(link)  # Add to set after scraping
+                        self.executed_urls.add(link)
                         self._save_executed_url(link)
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed processing article entry: {e}")
 
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to load search page {page} for query '{query}': {e}")
-                    continue
+
 
     def _scrape_article(self, url):
-        try:
-            self.driver.get(url)
-            WebDriverWait(self.driver, 15).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "h1[property='name']"))
-            )
-            soup = BeautifulSoup(self.driver.page_source, "html.parser")
+        for attempt in range(3):
+            try:
+                self.driver.get(url)
+                WebDriverWait(self.driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "h1[property='name']"))
+                )
+                soup = BeautifulSoup(self.driver.page_source, "html.parser")
 
-            paper_title = soup.select_one("h1[property='name']").text.strip()
-            authors = [a.get_text(strip=True) for a in soup.select(
-                "span[property='author'] span[property='givenName'], span[property='author'] span[property='familyName']")]
-            abstract_section = soup.select_one("section#abstract > div[role='paragraph']")
-            published_span = soup.select_one("div.core-published span.core-date-published")
-            published_date = published_span.get_text(strip=True) if published_span else "Unknown"
-            published_year = published_date.split()[-1] if published_date != "Unknown" else "Unknown"
-            abstract = abstract_section.get_text(strip=True) if abstract_section else "No abstract found"
-            journal_info = soup.select_one("div.core-enumeration a")
+                paper_title = soup.select_one("h1[property='name']").text.strip()
+                authors = [a.get_text(strip=True) for a in soup.select(
+                    "span[property='author'] span[property='givenName'], span[property='author'] span[property='familyName']")]
+                abstract_section = soup.select_one("section#abstract > div[role='paragraph']")
+                published_span = soup.select_one("div.core-published span.core-date-published")
+                published_date = published_span.get_text(strip=True) if published_span else "Unknown"
+                published_year = published_date.split()[-1] if published_date != "Unknown" else "Unknown"
+                abstract = abstract_section.get_text(strip=True) if abstract_section else "No abstract found"
+                journal_info = soup.select_one("div.core-enumeration a")
 
-            journal = volume = issue = "Unknown"
-            if journal_info:
-                journal = journal_info.select_one("span[property='name']").get_text(
-                    strip=True) if journal_info.select_one("span[property='name']") else "Unknown"
-                volume = journal_info.select_one("span[property='volumeNumber']").get_text(
-                    strip=True) if journal_info.select_one("span[property='volumeNumber']") else "N/A"
-                issue = journal_info.select_one("span[property='issueNumber']").get_text(
-                    strip=True) if journal_info.select_one("span[property='issueNumber']") else "N/A"
+                journal = volume = issue = "Unknown"
+                if journal_info:
+                    journal = journal_info.select_one("span[property='name']").get_text(strip=True) if journal_info.select_one("span[property='name']") else "Unknown"
+                    volume = journal_info.select_one("span[property='volumeNumber']").get_text(strip=True) if journal_info.select_one("span[property='volumeNumber']") else "N/A"
+                    issue = journal_info.select_one("span[property='issueNumber']").get_text(strip=True) if journal_info.select_one("span[property='issueNumber']") else "N/A"
 
-            data = {
-                "Title": paper_title,
-                "Authors": ", ".join(authors),
-                "Publisher": "ACM",
-                "Year": f"{published_year}",
-                "Abstract": abstract,
-                "Journal": journal,
-                "Volume/Issue": f"Volume:{volume}/Issue:{issue}",
-                "Cited By": "N/A"
-            }
-            self.scraped_count += 1
-            print(f"✅ Scraped item {self.scraped_count}")
-            self._save_to_csv(data)
+                data = {
+                    "Title": paper_title,
+                    "Authors": ", ".join(authors),
+                    "Publisher": "ACM",
+                    "Year": f"{published_year}",
+                    "Abstract": abstract,
+                    "Journal": journal,
+                    "Volume/Issue": f"Volume:{volume}/Issue:{issue}",
+                    "Cited By": "N/A"
+                }
+                self.scraped_count += 1
+                print(f"✅ Scraped item {self.scraped_count}")
+                self._save_to_csv(data)
+                return  # success, exit retry loop
 
-        except Exception as e:
-            logger.warning(f"⚠️ Error scraping article: {e}")
+            except Exception as e:
+                logger.warning(f"⚠️ Attempt {attempt+1}/3 failed to scrape article {url}: {e}")
+                time.sleep(5)
+
+        logger.error(f"❌ Failed to scrape article after 3 attempts: {url}")
 
     def _save_to_csv(self, row_data):
         file_exists = os.path.exists(self.CSV_FILE)
