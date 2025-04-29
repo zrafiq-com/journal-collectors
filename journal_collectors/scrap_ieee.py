@@ -51,7 +51,7 @@ class IEEEScraper:
         os.makedirs(os.path.dirname(self.csv_filename), exist_ok=True)
         if not os.path.exists(self.csv_filename):
             with open(self.csv_filename, mode="w", newline="", encoding="utf-8") as file:
-                writer = csv.DictWriter(file, fieldnames=["Title",  "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
+                writer = csv.DictWriter(file, fieldnames=["Title",  "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By", "Keywords"])
                 writer.writeheader()
         if not os.path.exists(self.executed_urls_file):
             with open(self.executed_urls_file, mode="w", newline="", encoding="utf-8") as file:
@@ -69,7 +69,8 @@ class IEEEScraper:
 
     def save_data_to_csv(self, data):
         with open(self.csv_filename, mode="a", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By"])
+            writer = csv.DictWriter(file, fieldnames=["Title", "Authors", "Publisher", "Year", "Abstract", "Journal", "Volume/Issue", "Cited By", "Keywords"])
+            
             writer.writerow({
                 "Title": data[0],
                 "Authors": data[1],
@@ -78,9 +79,14 @@ class IEEEScraper:
                 "Abstract": data[4],
                 "Journal": data[5],
                 "Volume/Issue": data[6],
-                "Cited By": data[7]
+                "Cited By": data[7],
+                "Keywords": ", ".join(data[8]),
+                
             })
+            
 
+            logger.info(f"Saved data to CSV: {data}")
+            # print(f"✅ Saved data to CSV: {data}")
     def save_executed_url(self, url):
         if url not in self.executed_urls:
             with open(self.executed_urls_file, mode="a", newline="", encoding="utf-8") as file:
@@ -114,9 +120,39 @@ class IEEEScraper:
             abstract = abstract_element.text.strip()
         except:
             abstract = "N/A"
+            
+        keywords_data = {
+            "Author Keywords": [],
+        }
+        try:
+            keywords_button = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "button#keywords")))
+            self.driver.execute_script("arguments[0].click();", keywords_button)
+            time.sleep(1) 
+            
+            keyword_sections = self.driver.find_elements(By.CSS_SELECTOR, ".doc-keywords-list-item")
+            
+            for section in keyword_sections:
+                type_element = section.find_element(By.TAG_NAME, "strong")
+                
+                keyword_type = type_element.text.strip()
+                if keyword_type != "Author Keywords":
+                    continue
+                keyword_elements = section.find_elements(By.CSS_SELECTOR, ".stats-keywords-list-item")
+                keywords = [el.text.strip() for el in keyword_elements if el.text.strip()]
+                if len(keywords) > 0:
+                    keywords_data["Author Keywords"] = keywords
+                    # print(f"✅ Extracted Author Keywords: {keywords_data['Author Keywords']}")
+                else:
+                    logger.warning("⚠️ No Author Keywords found.")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to extract Author Keywords section: {e}")
+            keywords_data["Author Keywords"] = ["N/A"]
+        
+                
         self.driver.close()
         self.driver.switch_to.window(self.original_window)
-        return abstract
+        return abstract, keywords_data["Author Keywords"]
+    
 
     def extract_item_data(self, item):
         title_element = item.find_element(By.CSS_SELECTOR, "h3 a")
@@ -131,9 +167,9 @@ class IEEEScraper:
         publisher = self.safe_find(item, By.XPATH, ".//span[contains(text(), 'Publisher')]//following-sibling::span")
         cited_by = self.safe_find(item, By.XPATH, ".//a[contains(@href, '/citations')]")
 
-        abstract = self.extract_abstract(link)
+        abstract, keywords = self.extract_abstract(link)
 
-        return [title, authors, publisher, year, abstract, journal, f"{volume} | {issue}", cited_by, link]
+        return [title, authors, publisher, year, abstract, journal, f"{volume} | {issue}", cited_by, keywords, link]
 
     def extract_results(self, limit):
         scraped_count = 0
@@ -144,7 +180,8 @@ class IEEEScraper:
                     return scraped_count
                 try:
                     data = self.extract_item_data(item)
-                    link = data[8]
+                    link = data[9]
+
 
                     if self.is_url_executed(link):
                         print(f"⏩ Skipping already executed item: {link}")
